@@ -13,7 +13,7 @@ pub use mime_types::MimeType;
 macro_rules! merrymake_service {
     ( { actions: { $( $action:literal : $handler:ident ) , * } $(, init: $init:ident )? } ) => {
         {
-            use mist_tools::mist::{get_args, get_payload};
+            use merrymake_service_library::merrymake::{get_args, get_payload};
             let (arg_action, envelope) = get_args()?;
             match arg_action.as_str() {
             $(
