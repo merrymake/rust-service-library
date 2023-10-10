@@ -1,12 +1,3 @@
-# Rust Service Library for Merrymake
-
-This is the official Rust service library for Merrymake. It defines all the basic functions needed to work with Merrymake.
-
-## Usage
-
-Here is the most basic example of how to use this library: 
-
-```rust
 use merrymake_service_library::{merrymake_service, mime_types, reply_str_to_origin, Envelope};
 use std::str;
 
@@ -25,10 +16,3 @@ pub fn handle_hello(_buffer: Vec<u8>, _envelope: Envelope) -> Result<(), String>
     reply_str_to_origin(format!("Hello, {}!", payload), mime_types::TXT).unwrap();
     Ok(())
 }
-```
-
-## Tutorials and templates
-
-For more information check out our tutorials at [merrymake.dev](https://merrymake.dev).
-
-All templates are available through our CLI and on our [GitHub](https://github.com/merrymake).
