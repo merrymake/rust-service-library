@@ -55,12 +55,12 @@ pub fn post_to_rapids(
 
 pub fn post_str_to_rapids(
     event: &'static str,
-    body: &'static str,
+    body: impl Into<String>,
     content_type: MimeType,
 ) -> Result<(), String> {
     internal_post_to_rapids(event, |r| {
         r.header("Content-Type", content_type.to_string())
-            .body(body)
+            .body(body.into())
             .send()
     })
 }
@@ -73,7 +73,7 @@ pub fn reply_to_origin(body: Vec<u8>, content_type: MimeType) -> Result<(), Stri
     post_to_rapids("$reply", body, content_type)
 }
 
-pub fn reply_str_to_origin(body: &'static str, content_type: MimeType) -> Result<(), String> {
+pub fn reply_str_to_origin(body: impl Into<String>, content_type: MimeType) -> Result<(), String> {
     post_str_to_rapids("$reply", body, content_type)
 }
 
