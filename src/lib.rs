@@ -19,12 +19,10 @@ macro_rules! merrymake_service {
             $(
                 $action => $handler(get_payload()?, envelope),
             )*
-                _ => Ok(())
-            }
             $(
-                ?; // Pop result from action above
-                Ok($init()?)
+                _ => $init()?,
             )?
+            }
         }
     };
 }
