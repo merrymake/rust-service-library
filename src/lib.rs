@@ -22,6 +22,7 @@ macro_rules! merrymake_service {
             $(
                 _ => $init()?,
             )?
+            _ => Ok(())
             }
         }
     };
