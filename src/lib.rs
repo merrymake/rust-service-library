@@ -20,7 +20,7 @@ macro_rules! merrymake_service {
                 $action => $handler(get_payload()?, envelope),
             )*
             $(
-                _ => $init()?,
+                _ => Ok($init()?),
             )?
             _ => Ok(())
             }
