@@ -1,5 +1,6 @@
 use crate::{mime_types, Envelope, MimeType};
 use reqwest::blocking::{Client, RequestBuilder, Response};
+use serde::Serialize;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
@@ -41,6 +42,12 @@ fn internal_post_to_rapids(
     Ok(())
 }
 
+/// Post an event to the central message queue (Rapids), with a payload and its
+/// content type.
+/// # Arguments
+/// * `event` --       the event to post
+/// * `body` --        the payload
+/// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(
     event: &'static str,
     body: Vec<u8>,
@@ -53,6 +60,12 @@ pub fn post_to_rapids(
     })
 }
 
+/// Post an event to the central message queue (Rapids), with a payload and its
+/// content type.
+/// # Arguments
+/// * `event` --       the event to post
+/// * `body` --        the payload
+/// * `contentType` -- the content type of the payload
 pub fn post_str_to_rapids(
     event: &'static str,
     body: impl Into<String>,
@@ -65,18 +78,34 @@ pub fn post_str_to_rapids(
     })
 }
 
+/// Post an event to the central message queue (Rapids), without a payload.
+/// # Arguments
+/// * `event` -- the event to post
 pub fn post_event_to_rapids(event: &'static str) -> Result<(), String> {
     internal_post_to_rapids(event, |r| r.send())
 }
-
+/// Post a reply back to the originator of the trace, with a payload and its
+/// content type.
+/// # Arguments
+/// * `body` --        the payload
+/// * `contentType` -- the content type of the payload
 pub fn reply_to_origin(body: Vec<u8>, content_type: MimeType) -> Result<(), String> {
     post_to_rapids("$reply", body, content_type)
 }
 
+/// Post a reply back to the originator of the trace, with a payload and its
+/// content type.
+/// # Arguments
+/// * `body` --        the payload
+/// * `contentType` -- the content type of the payload
 pub fn reply_str_to_origin(body: impl Into<String>, content_type: MimeType) -> Result<(), String> {
     post_str_to_rapids("$reply", body, content_type)
 }
 
+/// Send a file back to the originator of the trace.
+/// # Arguments
+/// * `path` --        the path to the file starting from main/resources
+/// * `contentType` -- the content type of the file
 pub fn reply_file_to_origin_with_content_type(
     path: &'static str,
     content_type: MimeType,
@@ -90,6 +119,9 @@ pub fn reply_file_to_origin_with_content_type(
     post_to_rapids("$reply", body, content_type)
 }
 
+/// Send a file back to the originator of the trace.
+/// # Arguments
+/// * `path` -- the path to the file starting from main/resources
 pub fn reply_file_to_origin(path: &'static str) -> Result<(), String> {
     let file_ext = path.split('.').last();
     match file_ext {
@@ -105,4 +137,44 @@ pub fn reply_file_to_origin(path: &'static str) -> Result<(), String> {
             path
         )),
     }
+}
+
+// Subscribe to a channel, so events will stream back messages broadcast to that
+/// channel. You can join multiple channels. You stay in the channel until the
+/// request is terminated.
+///
+/// Note: The origin-event has to be set as "streaming: true" in the
+/// event-catalogue.
+/// # Arguments
+/// * `channel` -- the channel to join
+pub fn join_channel(channel: impl Into<String>) -> Result<(), String> {
+    post_str_to_rapids("$join", channel, mime_types::TXT)
+}
+/// Broadcast a message (event and payload) to all listeners in a channel.
+/// # Arguments
+/// * `to` -- the channel to broadcast to
+/// * `event` -- the event-type of the message
+/// * `payload` -- the payload of the message
+pub fn broadcast_to_channel(
+    to: impl Into<String>,
+    event: impl Into<String>,
+    payload: impl Into<String>,
+) -> Result<(), String> {
+    #[derive(Serialize)]
+    struct Body {
+        to: String,
+        event: String,
+        payload: String,
+    }
+
+    post_str_to_rapids(
+        "$broadcast",
+        serde_json::to_string(&Body {
+            to: to.into(),
+            event: event.into(),
+            payload: payload.into(),
+        })
+        .unwrap(),
+        mime_types::JSON,
+    )
 }
