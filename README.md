@@ -4,6 +4,12 @@ This is the official Rust service library for Merrymake. It defines all the basi
 
 ## Usage
 
+To add this library to your project dependencies add the following line in the `[dependencies]` section in your `Cargo.toml`:
+
+```
+merrymake-service-library = { git = "https://github.com/merrymake/rust-service-library.git", tag = "v0.2.0" }
+```
+
 Here is the most basic example of how to use this library: 
 
 ```rust
