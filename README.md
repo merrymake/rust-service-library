@@ -2,15 +2,25 @@
 
 This is the official Rust service library for Merrymake. It defines all the basic functions needed to work with Merrymake.
 
+## Getting Started
+
+Add following dependency to your Mist service:
+
+```
+mist-tools = { git = "https://github.com/aekvi/mist-tools-rust.git", tag = "v0.1.1" }
+```
+
+Also, Mist requires an entry point '`app`'. You can specify your `src/main.rs` file as this entry point by adding the following to your `Cargo.toml`:
+
+```
+[[bin]]
+name = "app"
+path = "src/main.rs"
+```
+
 ## Usage
 
-To add this library to your project dependencies add the following line in the `[dependencies]` section in your `Cargo.toml`:
-
-```
-merrymake-service-library = { git = "https://github.com/merrymake/rust-service-library.git", tag = "v0.2.0" }
-```
-
-Here is the most basic example of how to use this library: 
+Here is the most basic example of how to use this library:
 
 ```rust
 use merrymake_service_library::{merrymake_service, mime_types, reply_str_to_origin, Envelope};
