@@ -2,9 +2,25 @@
 
 This is the official Rust service library for Merrymake. It defines all the basic functions needed to work with Merrymake.
 
+## Getting Started
+
+Add the following dependency to your Merrymake service:
+
+```
+merrymake-service-library = { git = "https://github.com/merrymake/rust-service-library.git", tag = "v0.2.0" }
+```
+
+Also, Merrymake requires the entry point `app`. You can specify your `src/main.rs` file as this entry point by adding the following to your `Cargo.toml`:
+
+```
+[[bin]]
+name = "app"
+path = "src/main.rs"
+```
+
 ## Usage
 
-Here is the most basic example of how to use this library: 
+Here is the most basic example of how to use this library:
 
 ```rust
 use merrymake_service_library::{merrymake_service, mime_types, reply_str_to_origin, Envelope};
@@ -20,8 +36,8 @@ pub fn main() -> Result<(), String> {
     )
 }
 
-pub fn handle_hello(_buffer: Vec<u8>, _envelope: Envelope) -> Result<(), String> {
-    let payload = str::from_utf8(&_buffer).unwrap();
+pub fn handle_hello(buffer: Vec<u8>, _envelope: Envelope) -> Result<(), String> {
+    let payload = str::from_utf8(&buffer).unwrap();
     reply_str_to_origin(format!("Hello, {}!", payload), mime_types::TXT).unwrap();
     Ok(())
 }
