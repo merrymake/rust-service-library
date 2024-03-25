@@ -27,7 +27,7 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
 }
 
 fn internal_post_to_rapids(
-    event: &'static str,
+    event: &str,
     request_completer: impl FnOnce(RequestBuilder) -> Result<Response, reqwest::Error>,
 ) -> Result<(), String> {
     let rapids_url = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
@@ -48,11 +48,7 @@ fn internal_post_to_rapids(
 /// * `event` --       the event to post
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn post_to_rapids(
-    event: &'static str,
-    body: Vec<u8>,
-    content_type: MimeType,
-) -> Result<(), String> {
+pub fn post_to_rapids(event: &str, body: Vec<u8>, content_type: MimeType) -> Result<(), String> {
     internal_post_to_rapids(event, |r| {
         r.header("Content-Type", content_type.to_string())
             .body(body)
@@ -67,7 +63,7 @@ pub fn post_to_rapids(
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
 pub fn post_str_to_rapids(
-    event: &'static str,
+    event: &str,
     body: impl Into<String>,
     content_type: MimeType,
 ) -> Result<(), String> {
@@ -81,7 +77,7 @@ pub fn post_str_to_rapids(
 /// Post an event to the central message queue (Rapids), without a payload.
 /// # Arguments
 /// * `event` -- the event to post
-pub fn post_event_to_rapids(event: &'static str) -> Result<(), String> {
+pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
     internal_post_to_rapids(event, |r| r.send())
 }
 /// Post a reply back to the originator of the trace, with a payload and its
@@ -107,7 +103,7 @@ pub fn reply_str_to_origin(body: impl Into<String>, content_type: MimeType) -> R
 /// * `path` --        the path to the file starting from main/resources
 /// * `contentType` -- the content type of the file
 pub fn reply_file_to_origin_with_content_type(
-    path: &'static str,
+    path: &str,
     content_type: MimeType,
 ) -> Result<(), String> {
     let mut file = File::open(path).map_err(|_| format!("unable to open file '{}'", path))?;
@@ -122,7 +118,7 @@ pub fn reply_file_to_origin_with_content_type(
 /// Send a file back to the originator of the trace.
 /// # Arguments
 /// * `path` -- the path to the file starting from main/resources
-pub fn reply_file_to_origin(path: &'static str) -> Result<(), String> {
+pub fn reply_file_to_origin(path: &str) -> Result<(), String> {
     let file_ext = path.split('.').last();
     match file_ext {
         Some(f) => {
