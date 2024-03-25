@@ -7,7 +7,7 @@ This is the official Rust service library for Merrymake. It defines all the basi
 Add the following dependency to your Merrymake service:
 
 ```
-merrymake-service-library = { git = "https://github.com/merrymake/rust-service-library.git", tag = "v0.2.0" }
+merrymake-service-library = { git = "https://github.com/merrymake/rust-service-library.git", tag = "latest" }
 ```
 
 Also, Merrymake requires the entry point `app`. You can specify your `src/main.rs` file as this entry point by adding the following to your `Cargo.toml`:
