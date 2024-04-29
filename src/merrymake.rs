@@ -1,9 +1,9 @@
 use crate::{mime_types, Envelope, MimeType};
-use reqwest::blocking::{Client, RequestBuilder, Response};
 use serde::Serialize;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
+use ureq::{Request, Response};
 
 pub fn get_payload() -> Result<Vec<u8>, &'static str> {
     let mut buffer = Vec::new();
@@ -28,13 +28,12 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
 
 fn internal_post_to_rapids(
     event: &str,
-    request_completer: impl FnOnce(RequestBuilder) -> Result<Response, reqwest::Error>,
+    request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
 ) -> Result<(), String> {
     let rapids_url = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
     let event_url = format!("{}/{}", rapids_url, event);
 
-    let client = Client::new();
-    let init_request_builder = client.post(&event_url);
+    let init_request_builder = ureq::post(&event_url);
 
     request_completer(init_request_builder)
         .map_err(|_| format!("unable to post event '{}' to url '{}'", event, event_url))?;
@@ -48,11 +47,10 @@ fn internal_post_to_rapids(
 /// * `event` --       the event to post
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn post_to_rapids(event: &str, body: Vec<u8>, content_type: MimeType) -> Result<(), String> {
+pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
     internal_post_to_rapids(event, |r| {
-        r.header("Content-Type", content_type.to_string())
-            .body(body)
-            .send()
+        r.set("Content-Type", content_type.to_string().as_str())
+            .send_bytes(body)
     })
 }
 
@@ -68,9 +66,8 @@ pub fn post_str_to_rapids(
     content_type: MimeType,
 ) -> Result<(), String> {
     internal_post_to_rapids(event, |r| {
-        r.header("Content-Type", content_type.to_string())
-            .body(body.into())
-            .send()
+        r.set("Content-Type", content_type.to_string().as_str())
+            .send_string(body.into().as_str())
     })
 }
 
@@ -78,14 +75,14 @@ pub fn post_str_to_rapids(
 /// # Arguments
 /// * `event` -- the event to post
 pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
-    internal_post_to_rapids(event, |r| r.send())
+    internal_post_to_rapids(event, |r| r.call())
 }
 /// Post a reply back to the originator of the trace, with a payload and its
 /// content type.
 /// # Arguments
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn reply_to_origin(body: Vec<u8>, content_type: MimeType) -> Result<(), String> {
+pub fn reply_to_origin(body: &[u8], content_type: MimeType) -> Result<(), String> {
     post_to_rapids("$reply", body, content_type)
 }
 
@@ -112,7 +109,7 @@ pub fn reply_file_to_origin_with_content_type(
     file.read_to_end(&mut body)
         .map_err(|_| format!("unable to read file '{}'", path))?;
 
-    post_to_rapids("$reply", body, content_type)
+    post_to_rapids("$reply", &body, content_type)
 }
 
 /// Send a file back to the originator of the trace.
