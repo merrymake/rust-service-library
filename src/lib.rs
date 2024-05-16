@@ -18,8 +18,8 @@ pub use mime_types::MimeType;
 macro_rules! merrymake_service {
     ( { actions: { $( $action:literal : $handler:ident ) , * } $(, init: $init:ident )? } ) => {
         {
-            use merrymake_service_library::merrymake::{get_args, get_payload};
-            if (std::env::args().count() == 2) {
+            use merrymake_service_library::merrymake::{tcp_is_enabled, get_args, get_payload};
+            if tcp_is_enabled() {
                 todo!()
             } else {
                 let (arg_action, envelope) = get_args()?;

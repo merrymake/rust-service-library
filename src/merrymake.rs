@@ -2,7 +2,8 @@ use crate::{mime_types, Envelope, MimeType};
 use serde::Serialize;
 use std::env;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
+use std::net;
 use ureq::{Request, Response};
 
 pub fn get_payload() -> Result<Vec<u8>, &'static str> {
@@ -26,6 +27,12 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
     Ok((action, envelope))
 }
 
+pub fn get_args_and_action() -> Result<(String, Envelope), &'static str> {
+    let mut bytes: Vec<u8> = Vec::with_capacity(16); // 16 bytes is a fair minimum capacity
+    let stdin = io::stdin().read_to_end(&mut bytes);
+    todo!()
+}
+
 fn internal_post_http_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
@@ -41,6 +48,15 @@ fn internal_post_http_to_rapids(
     Ok(())
 }
 
+/// Returns `true` if the `tcp` feature is enabled.
+pub fn tcp_is_enabled() -> bool {
+    env::args().count() == 2
+}
+
+fn pack(event: &str, body: &[u8], content_type: MimeType) -> Vec<u8> {
+    todo!()
+}
+
 /// Post an event to the central message queue (Rapids), with a payload and its
 /// content type.
 /// # Arguments
@@ -48,10 +64,17 @@ fn internal_post_http_to_rapids(
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
-    internal_post_http_to_rapids(event, |r| {
-        r.set("Content-Type", content_type.to_string().as_str())
-            .send_bytes(body)
-    })
+    if tcp_is_enabled() {
+        let packed = pack(event, body, content_type);
+        let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
+        let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
+        stream.write_all(&packed).map_err(|e| e.to_string())
+    } else {
+        internal_post_http_to_rapids(event, |r| {
+            r.set("Content-Type", content_type.to_string().as_str())
+                .send_bytes(body)
+        })
+    }
 }
 
 /// Post an event to the central message queue (Rapids), with a payload and its
