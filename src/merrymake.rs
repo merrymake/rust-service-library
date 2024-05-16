@@ -26,7 +26,7 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
     Ok((action, envelope))
 }
 
-fn internal_post_to_rapids(
+fn internal_post_http_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
 ) -> Result<(), String> {
@@ -48,7 +48,7 @@ fn internal_post_to_rapids(
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
-    internal_post_to_rapids(event, |r| {
+    internal_post_http_to_rapids(event, |r| {
         r.set("Content-Type", content_type.to_string().as_str())
             .send_bytes(body)
     })
@@ -65,7 +65,7 @@ pub fn post_str_to_rapids(
     body: impl Into<String>,
     content_type: MimeType,
 ) -> Result<(), String> {
-    internal_post_to_rapids(event, |r| {
+    internal_post_http_to_rapids(event, |r| {
         r.set("Content-Type", content_type.to_string().as_str())
             .send_string(body.into().as_str())
     })
@@ -75,7 +75,7 @@ pub fn post_str_to_rapids(
 /// # Arguments
 /// * `event` -- the event to post
 pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
-    internal_post_to_rapids(event, |r| r.call())
+    internal_post_http_to_rapids(event, |r| r.call())
 }
 /// Post a reply back to the originator of the trace, with a payload and its
 /// content type.
