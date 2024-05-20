@@ -27,9 +27,18 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
     Ok((action, envelope))
 }
 
-pub fn get_args_and_action() -> Result<(String, Envelope), &'static str> {
+/// Reads the bytes from stdin.
+fn get_bytes() -> Result<Vec<u8>, String> {
     let mut bytes: Vec<u8> = Vec::with_capacity(16); // 16 bytes is a fair minimum capacity
-    let stdin = io::stdin().read_to_end(&mut bytes);
+    let _ = io::stdin()
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    Ok(bytes)
+}
+
+/// Used for tcp
+pub fn get_args_and_action() -> Result<(String, Envelope), String> {
+    let bytes = get_bytes()?;
     todo!()
 }
 
