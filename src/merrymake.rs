@@ -36,9 +36,16 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
+    todo!()
+}
+
 /// Used for tcp
 pub fn get_args_and_action() -> Result<(String, Envelope), String> {
     let bytes = get_bytes()?;
+    let (action, rest_bytes1) = read_next_byte_chunk(&bytes)?;
+    let (envelope, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
+    let (payload, _) = read_next_byte_chunk(&rest_bytes2)?;
     todo!()
 }
 
