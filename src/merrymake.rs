@@ -37,7 +37,7 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-fn length_to_bytes(length: usize) -> [u8; 3] {
+fn length_to_bytes(length: &usize) -> [u8; 3] {
     let bytes = length.to_be_bytes();
     [bytes[5], bytes[6], bytes[7]]
 }
@@ -102,9 +102,9 @@ fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, St
 fn pack_rapids_payload(event: &str, body: &[u8]) -> Result<Vec<u8>, String> {
     let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
     let bytes = vec![
-        &length_to_bytes(event.len())[..],
+        &length_to_bytes(&event.len())[..],
         event.as_slice(),
-        &length_to_bytes(body.len())[..],
+        &length_to_bytes(&body.len())[..],
         body,
     ]
     .concat();
