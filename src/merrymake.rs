@@ -75,7 +75,7 @@ pub fn tcp_is_enabled() -> bool {
     env::args().count() == 2
 }
 
-fn pack(event: &str, body: &[u8], content_type: MimeType) -> Vec<u8> {
+fn pack(event: &str, body: &[u8]) -> Vec<u8> {
     todo!()
 }
 
@@ -102,7 +102,7 @@ fn internal_post_http_to_rapids(
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
     if tcp_is_enabled() {
-        let packed = pack(event, body, content_type);
+        let packed = pack(event, body);
         let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
         let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
         stream.write_all(&packed).map_err(|e| e.to_string())
