@@ -41,7 +41,6 @@ fn tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
 /// # Arguments
 /// * `event` --       the event to post
 /// * `body` --        the payload
-/// * `contentType` -- the content type of the payload
 pub fn post_str_to_rapids(event: &str, body: impl Into<String>) -> Result<(), String> {
     http_post_to_rapids(event, |r| {
         r.set("Content-Type", mime_types::TXT.to_string().as_str())
