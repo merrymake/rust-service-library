@@ -22,7 +22,7 @@ pub struct Envelope {
 
 impl Envelope {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
-        serde_json::from_slice(bytes).map_err(|_| "Unable to parse envelope from json")
+        serde_json::from_slice(bytes).map_err(|_| "Unable to parse envelope from bytes")
     }
 }
 
