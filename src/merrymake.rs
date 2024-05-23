@@ -30,12 +30,6 @@ pub fn post_to_rapids<T: serde::Serialize + ?Sized>(
     }
 }
 
-fn tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
-    let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
-    let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
-    stream.write_all(bytes).map_err(|e| e.to_string())
-}
-
 /// Post an event to the central message queue (Rapids), with a payload and its
 /// content type.
 /// # Arguments
@@ -176,6 +170,12 @@ fn get_tcp_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
 /// Returns `true` if the `tcp` feature is enabled.
 fn tcp_is_enabled() -> bool {
     env::args().count() == 2
+}
+
+fn tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
+    let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
+    let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
+    stream.write_all(bytes).map_err(|e| e.to_string())
 }
 
 fn http_post_to_rapids(
