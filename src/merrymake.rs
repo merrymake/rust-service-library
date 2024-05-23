@@ -92,23 +92,7 @@ fn internal_http_post_to_rapids(
 
 fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, String> {
     if event == "$reply" {
-        #[derive(Serialize)]
-        struct Headers {
-            #[serde(alias = "contentType")]
-            content_type: String,
-        }
-        #[derive(Serialize)]
-        struct Reply {
-            headers: Headers,
-            content: Vec<u8>,
-        }
-        let reply = Reply {
-            headers: Headers {
-                content_type: content_type.to_string(),
-            },
-            content: Vec::from(body),
-        };
-        serde_json::to_vec(&reply).map_err(|e| e.to_string())
+        pack_reply_payload(content_type, body)
     } else {
         let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
         let bytes = vec![
@@ -120,6 +104,26 @@ fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, St
         .concat();
         Ok(bytes)
     }
+}
+
+fn pack_reply_payload(content_type: &MimeType, body: &[u8]) -> Result<Vec<u8>, String> {
+    #[derive(Serialize)]
+    struct Headers {
+        #[serde(alias = "contentType")]
+        content_type: String,
+    }
+    #[derive(Serialize)]
+    struct Reply {
+        headers: Headers,
+        content: Vec<u8>,
+    }
+    let reply = Reply {
+        headers: Headers {
+            content_type: content_type.to_string(),
+        },
+        content: Vec::from(body),
+    };
+    serde_json::to_vec(&reply).map_err(|e| e.to_string())
 }
 
 /// Post an event to the central message queue (Rapids), with a payload and its
