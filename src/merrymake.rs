@@ -53,18 +53,22 @@ fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, usize), &'static str> 
 /// Returns the given `(action, envelope, payload)`.
 pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
     if tcp_is_enabled() {
-        let bytes = get_bytes()?;
-        let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
-        let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
-        let (payload, _) = read_next_byte_chunk(&bytes[j..])?;
-        let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
-        let envelope = Envelope::from_bytes(&envelope_bytes)?;
-        Ok((action, envelope, payload))
+        get_tcp_args()
     } else {
         let (action, envelope) = get_action_and_envelope()?;
         let payload = get_bytes()?;
         Ok((action, envelope, payload))
     }
+}
+
+fn get_tcp_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    let bytes = get_bytes()?;
+    let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
+    let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
+    let (payload, _) = read_next_byte_chunk(&bytes[j..])?;
+    let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
+    let envelope = Envelope::from_bytes(&envelope_bytes)?;
+    Ok((action, envelope, payload))
 }
 
 /// Returns `true` if the `tcp` feature is enabled.
