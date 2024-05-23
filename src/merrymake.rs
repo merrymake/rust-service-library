@@ -19,7 +19,7 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
     let envelope_str = args
         .pop()
         .ok_or("unable to read 'envelope' from program arguments")?;
-    let envelope = Envelope::new(envelope_str.as_str())?;
+    let envelope = Envelope::from_str(envelope_str.as_str())?;
     let action = args
         .pop()
         .ok_or("unable to read 'action' from program arguments")?;
@@ -41,12 +41,14 @@ fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
 }
 
 /// Used for tcp
-pub fn get_args_and_action() -> Result<(String, Envelope), String> {
+pub fn get_args_and_action() -> Result<(String, Envelope, Vec<u8>), String> {
     let bytes = get_bytes()?;
-    let (action, rest_bytes1) = read_next_byte_chunk(&bytes)?;
-    let (envelope, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
+    let (action_bytes, rest_bytes1) = read_next_byte_chunk(&bytes)?;
+    let (envelope_bytes, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
     let (payload, _) = read_next_byte_chunk(&rest_bytes2)?;
-    todo!()
+    let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
+    let envelope = Envelope::from_bytes(&envelope_bytes)?;
+    Ok((action, envelope, payload))
 }
 
 fn internal_post_http_to_rapids(
