@@ -95,9 +95,16 @@ fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, St
         // { content: Vec<u8>, headers: { contentType: String } }
         todo!()
     } else {
-        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
-        let body = Vec::from(body);
-        let bytes = vec![event, body].concat();
+        let event = serde_json::to_vec(event)
+            .map_err(|e| e.to_string())?
+            .as_slice();
+        let bytes = vec![
+            &length_to_bytes(event.len())[..],
+            event,
+            &length_to_bytes(body.len())[..],
+            body,
+        ]
+        .concat();
         Ok(bytes)
     }
 }
