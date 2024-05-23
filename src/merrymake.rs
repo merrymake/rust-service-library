@@ -37,20 +37,22 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-fn bytes_to_number(bytes: &[u8]) -> Result<u32, &'static str> {
+fn bytes_to_number(bytes: &[u8]) -> Result<usize, &'static str> {
     if bytes.len() < 3 {
         Err("byte vector too small to interpret as number")
     } else {
-        let left = u32::from(bytes[0]) << 16;
-        let mid = u32::from(bytes[1]) << 8;
-        let right = u32::from(bytes[2]);
+        let left = usize::from(bytes[0]) << 16;
+        let mid = usize::from(bytes[1]) << 8;
+        let right = usize::from(bytes[2]);
         Ok(left | mid | right)
     }
 }
 
-fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
-    let len = bytes_to_number(&bytes[..2])?;
-    todo!()
+/// TODO: Maybe return `end` index instead so we avoid copying the bytes
+fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), &'static str> {
+    let len = bytes_to_number(&bytes[..3])?;
+    let end = len + 3;
+    Ok((Vec::from(&bytes[3..end]), Vec::from(&bytes[end..])))
 }
 
 /// Used for tcp
