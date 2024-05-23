@@ -37,7 +37,7 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-fn bytes_to_number(bytes: &[u8]) -> Result<usize, &'static str> {
+fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
     if bytes.len() < 3 {
         Err("byte vector too small to interpret as number")
     } else {
@@ -50,7 +50,7 @@ fn bytes_to_number(bytes: &[u8]) -> Result<usize, &'static str> {
 
 /// TODO: Maybe return `end` index instead so we avoid copying the bytes
 fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), &'static str> {
-    let len = bytes_to_number(&bytes[..3])?;
+    let len = bytes_to_index(&bytes[..3])?;
     let end = len + 3;
     Ok((Vec::from(&bytes[3..end]), Vec::from(&bytes[end..])))
 }
