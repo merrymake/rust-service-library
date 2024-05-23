@@ -7,134 +7,6 @@ use std::net;
 use std::str::FromStr;
 use ureq::{Request, Response};
 
-fn get_bytes() -> Result<Vec<u8>, &'static str> {
-    let mut buffer = Vec::with_capacity(16);
-    io::stdin()
-        .read_to_end(&mut buffer)
-        .map_err(|_| "unable to read from stdin")?;
-    Ok(buffer)
-}
-
-fn get_action_and_envelope() -> Result<(String, Envelope), &'static str> {
-    let mut args: Vec<_> = env::args().collect();
-    let envelope_str = args
-        .pop()
-        .ok_or("unable to read 'envelope' from program arguments")?;
-    let envelope = Envelope::from_str(envelope_str.as_str())?;
-    let action = args
-        .pop()
-        .ok_or("unable to read 'action' from program arguments")?;
-
-    Ok((action, envelope))
-}
-
-fn length_to_bytes(length: &usize) -> [u8; 3] {
-    let bytes = length.to_be_bytes();
-    [bytes[5], bytes[6], bytes[7]]
-}
-
-fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
-    if bytes.len() < 3 {
-        Err("byte vector too small to interpret as number")
-    } else {
-        let left = usize::from(bytes[0]) << 16;
-        let mid = usize::from(bytes[1]) << 8;
-        let right = usize::from(bytes[2]);
-        Ok(left | mid | right)
-    }
-}
-
-fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, usize), &'static str> {
-    let len = bytes_to_index(&bytes[..3])?;
-    let end = len + 3;
-    Ok((Vec::from(&bytes[3..end]), end))
-}
-
-/// Returns the given `(action, envelope, payload)`.
-pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
-    if tcp_is_enabled() {
-        get_tcp_mode_args()
-    } else {
-        get_http_mode_args()
-    }
-}
-
-fn get_http_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
-    let (action, envelope) = get_action_and_envelope()?;
-    let payload = get_bytes()?;
-    Ok((action, envelope, payload))
-}
-
-fn get_tcp_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
-    let bytes = get_bytes()?;
-    let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
-    let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
-    let (payload, _) = read_next_byte_chunk(&bytes[j..])?;
-    let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
-    let envelope = Envelope::from_bytes(&envelope_bytes)?;
-    Ok((action, envelope, payload))
-}
-
-/// Returns `true` if the `tcp` feature is enabled.
-fn tcp_is_enabled() -> bool {
-    env::args().count() == 2
-}
-
-fn http_post_to_rapids(
-    event: &str,
-    request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
-) -> Result<(), String> {
-    let rapids_url = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
-    let event_url = format!("{}/{}", rapids_url, event);
-
-    let init_request_builder = ureq::post(&event_url);
-
-    request_completer(init_request_builder)
-        .map_err(|_| format!("unable to post event '{}' to url '{}'", event, event_url))?;
-
-    Ok(())
-}
-
-fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, String> {
-    if event == "$reply" {
-        pack_reply_payload(content_type, body)
-    } else {
-        pack_rapids_payload(event, body)
-    }
-}
-
-fn pack_rapids_payload(event: &str, body: &[u8]) -> Result<Vec<u8>, String> {
-    let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
-    let bytes = vec![
-        &length_to_bytes(&event.len())[..],
-        event.as_slice(),
-        &length_to_bytes(&body.len())[..],
-        body,
-    ]
-    .concat();
-    Ok(bytes)
-}
-
-fn pack_reply_payload(content_type: &MimeType, body: &[u8]) -> Result<Vec<u8>, String> {
-    #[derive(Serialize)]
-    struct Headers {
-        #[serde(alias = "contentType")]
-        content_type: String,
-    }
-    #[derive(Serialize)]
-    struct Reply {
-        headers: Headers,
-        content: Vec<u8>,
-    }
-    let reply = Reply {
-        headers: Headers {
-            content_type: content_type.to_string(),
-        },
-        content: Vec::from(body),
-    };
-    serde_json::to_vec(&reply).map_err(|e| e.to_string())
-}
-
 /// Post an event to the central message queue (Rapids), with a payload and its
 /// content type.
 /// # Arguments
@@ -148,8 +20,8 @@ pub fn post_to_rapids<T: serde::Serialize + ?Sized>(
 ) -> Result<(), String> {
     let body = serde_json::to_vec(body).map_err(|e| e.to_string())?;
     if tcp_is_enabled() {
-        let content = pack(event, &body, content_type)?;
-        tcp_post_to_rapids(&content)
+        let bytes = pack(event, &body, content_type)?;
+        tcp_post_to_rapids(&bytes)
     } else {
         http_post_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
@@ -277,5 +149,130 @@ pub fn broadcast_to_channel(
     )
 }
 
-#[cfg(test)]
-mod test {}
+/// Returns the given `(action, envelope, payload)`.
+pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    if tcp_is_enabled() {
+        get_tcp_mode_args()
+    } else {
+        get_http_mode_args()
+    }
+}
+
+fn get_http_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    let (action, envelope) = get_action_and_envelope()?;
+    let payload = get_bytes()?;
+    Ok((action, envelope, payload))
+}
+
+fn get_tcp_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    let bytes = get_bytes()?;
+    let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
+    let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
+    let (payload, _) = read_next_byte_chunk(&bytes[j..])?;
+    let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
+    let envelope = Envelope::from_bytes(&envelope_bytes)?;
+    Ok((action, envelope, payload))
+}
+
+/// Returns `true` if the `tcp` feature is enabled.
+fn tcp_is_enabled() -> bool {
+    env::args().count() == 2
+}
+
+fn http_post_to_rapids(
+    event: &str,
+    request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
+) -> Result<(), String> {
+    let rapids_url = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
+    let event_url = format!("{}/{}", rapids_url, event);
+
+    let init_request_builder = ureq::post(&event_url);
+
+    request_completer(init_request_builder)
+        .map_err(|_| format!("unable to post event '{}' to url '{}'", event, event_url))?;
+
+    Ok(())
+}
+
+fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, String> {
+    if event == "$reply" {
+        pack_reply_payload(content_type, body)
+    } else {
+        pack_rapids_payload(event, body)
+    }
+}
+
+fn pack_rapids_payload(event: &str, body: &[u8]) -> Result<Vec<u8>, String> {
+    let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
+    let bytes = vec![
+        &length_to_bytes(&event.len())[..],
+        event.as_slice(),
+        &length_to_bytes(&body.len())[..],
+        body,
+    ]
+    .concat();
+    Ok(bytes)
+}
+
+fn pack_reply_payload(content_type: &MimeType, body: &[u8]) -> Result<Vec<u8>, String> {
+    #[derive(Serialize)]
+    struct Headers {
+        #[serde(alias = "contentType")]
+        content_type: String,
+    }
+    #[derive(Serialize)]
+    struct Reply {
+        headers: Headers,
+        content: Vec<u8>,
+    }
+    let reply = Reply {
+        headers: Headers {
+            content_type: content_type.to_string(),
+        },
+        content: Vec::from(body),
+    };
+    serde_json::to_vec(&reply).map_err(|e| e.to_string())
+}
+
+fn get_bytes() -> Result<Vec<u8>, &'static str> {
+    let mut buffer = Vec::with_capacity(16);
+    io::stdin()
+        .read_to_end(&mut buffer)
+        .map_err(|_| "unable to read from stdin")?;
+    Ok(buffer)
+}
+
+fn get_action_and_envelope() -> Result<(String, Envelope), &'static str> {
+    let mut args: Vec<_> = env::args().collect();
+    let envelope_str = args
+        .pop()
+        .ok_or("unable to read 'envelope' from program arguments")?;
+    let envelope = Envelope::from_str(envelope_str.as_str())?;
+    let action = args
+        .pop()
+        .ok_or("unable to read 'action' from program arguments")?;
+
+    Ok((action, envelope))
+}
+
+fn length_to_bytes(length: &usize) -> [u8; 3] {
+    let bytes = length.to_be_bytes();
+    [bytes[5], bytes[6], bytes[7]]
+}
+
+fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
+    if bytes.len() < 3 {
+        Err("byte vector too small to interpret as number")
+    } else {
+        let left = usize::from(bytes[0]) << 16;
+        let mid = usize::from(bytes[1]) << 8;
+        let right = usize::from(bytes[2]);
+        Ok(left | mid | right)
+    }
+}
+
+fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, usize), &'static str> {
+    let len = bytes_to_index(&bytes[..3])?;
+    let end = len + 3;
+    Ok((Vec::from(&bytes[3..end]), end))
+}
