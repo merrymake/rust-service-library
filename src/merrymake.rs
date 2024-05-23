@@ -75,10 +75,6 @@ pub fn tcp_is_enabled() -> bool {
     env::args().count() == 2
 }
 
-fn pack(event: &str, body: &[u8]) -> Vec<u8> {
-    todo!()
-}
-
 fn internal_http_post_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
@@ -102,7 +98,11 @@ fn internal_http_post_to_rapids(
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
     if tcp_is_enabled() {
-        internal_tcp_post_to_rapids(event, body)
+        // What to do with content_type?
+        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
+        let body = Vec::from(body);
+        let bytes = vec![event, body].concat();
+        internal_tcp_post_to_rapids(&bytes)
     } else {
         internal_http_post_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
@@ -111,11 +111,10 @@ pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Resul
     }
 }
 
-fn internal_tcp_post_to_rapids(event: &str, body: &[u8]) -> Result<(), String> {
-    let packed = pack(event, body);
+fn internal_tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
     let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
     let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
-    stream.write_all(&packed).map_err(|e| e.to_string())
+    stream.write_all(bytes).map_err(|e| e.to_string())
 }
 
 /// Post an event to the central message queue (Rapids), with a payload and its
