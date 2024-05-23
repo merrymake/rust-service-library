@@ -79,7 +79,7 @@ fn pack(event: &str, body: &[u8]) -> Vec<u8> {
     todo!()
 }
 
-fn internal_post_http_to_rapids(
+fn internal_http_post_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
 ) -> Result<(), String> {
@@ -104,7 +104,7 @@ pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Resul
     if tcp_is_enabled() {
         internal_tcp_post_to_rapids(event, body)
     } else {
-        internal_post_http_to_rapids(event, |r| {
+        internal_http_post_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
                 .send_bytes(body)
         })
@@ -129,7 +129,7 @@ pub fn post_str_to_rapids(
     body: impl Into<String>,
     content_type: MimeType,
 ) -> Result<(), String> {
-    internal_post_http_to_rapids(event, |r| {
+    internal_http_post_to_rapids(event, |r| {
         r.set("Content-Type", content_type.to_string().as_str())
             .send_string(body.into().as_str())
     })
@@ -139,7 +139,7 @@ pub fn post_str_to_rapids(
 /// # Arguments
 /// * `event` -- the event to post
 pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
-    internal_post_http_to_rapids(event, |r| r.call())
+    internal_http_post_to_rapids(event, |r| r.call())
 }
 /// Post a reply back to the originator of the trace, with a payload and its
 /// content type.
