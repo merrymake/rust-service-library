@@ -44,20 +44,19 @@ fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
     }
 }
 
-/// TODO: Maybe return `end` index instead so we avoid copying the bytes
-fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), &'static str> {
+fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, usize), &'static str> {
     let len = bytes_to_index(&bytes[..3])?;
     let end = len + 3;
-    Ok((Vec::from(&bytes[3..end]), Vec::from(&bytes[end..])))
+    Ok((Vec::from(&bytes[3..end]), end))
 }
 
 /// Returns the given `(action, envelope, payload)`.
 pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
     if tcp_is_enabled() {
         let bytes = get_bytes()?;
-        let (action_bytes, rest_bytes1) = read_next_byte_chunk(&bytes)?;
-        let (envelope_bytes, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
-        let (payload, _) = read_next_byte_chunk(&rest_bytes2)?;
+        let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
+        let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
+        let (payload, _) = read_next_byte_chunk(&bytes[j..])?;
         let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
         let envelope = Envelope::from_bytes(&envelope_bytes)?;
         Ok((action, envelope, payload))
