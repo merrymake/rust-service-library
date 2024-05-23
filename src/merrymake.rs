@@ -37,6 +37,10 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+fn length_to_bytes(length: usize) -> [u8; 3] {
+    todo!()
+}
+
 fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
     if bytes.len() < 3 {
         Err("byte vector too small to interpret as number")
@@ -66,6 +70,15 @@ pub fn get_args_and_action() -> Result<(String, Envelope, Vec<u8>), String> {
     Ok((action, envelope, payload))
 }
 
+/// Returns `true` if the `tcp` feature is enabled.
+pub fn tcp_is_enabled() -> bool {
+    env::args().count() == 2
+}
+
+fn pack(event: &str, body: &[u8], content_type: MimeType) -> Vec<u8> {
+    todo!()
+}
+
 fn internal_post_http_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
@@ -79,15 +92,6 @@ fn internal_post_http_to_rapids(
         .map_err(|_| format!("unable to post event '{}' to url '{}'", event, event_url))?;
 
     Ok(())
-}
-
-/// Returns `true` if the `tcp` feature is enabled.
-pub fn tcp_is_enabled() -> bool {
-    env::args().count() == 2
-}
-
-fn pack(event: &str, body: &[u8], content_type: MimeType) -> Vec<u8> {
-    todo!()
 }
 
 /// Post an event to the central message queue (Rapids), with a payload and its
