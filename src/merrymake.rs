@@ -98,6 +98,11 @@ fn internal_http_post_to_rapids(
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
     if tcp_is_enabled() {
+        /*
+            if event == "$reply"
+            then payload has shape { content: Vec<u8>, headers: { contentType: String } }
+            else payload is body
+        */
         // What to do with content_type?
         let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
         let body = Vec::from(body);
