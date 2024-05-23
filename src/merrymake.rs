@@ -1,5 +1,5 @@
 use crate::{mime_types, Envelope, MimeType};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -38,7 +38,8 @@ fn get_bytes() -> Result<Vec<u8>, String> {
 }
 
 fn length_to_bytes(length: usize) -> [u8; 3] {
-    todo!()
+    let bytes = length.to_be_bytes();
+    [bytes[5], bytes[6], bytes[7]]
 }
 
 fn bytes_to_index(bytes: &[u8]) -> Result<usize, &'static str> {
