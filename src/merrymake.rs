@@ -102,16 +102,20 @@ fn internal_post_http_to_rapids(
 /// * `contentType` -- the content type of the payload
 pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
     if tcp_is_enabled() {
-        let packed = pack(event, body);
-        let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
-        let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
-        stream.write_all(&packed).map_err(|e| e.to_string())
+        internal_tcp_post_to_rapids(event, body)
     } else {
         internal_post_http_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
                 .send_bytes(body)
         })
     }
+}
+
+fn internal_tcp_post_to_rapids(event: &str, body: &[u8]) -> Result<(), String> {
+    let packed = pack(event, body);
+    let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
+    let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
+    stream.write_all(&packed).map_err(|e| e.to_string())
 }
 
 /// Post an event to the central message queue (Rapids), with a payload and its
