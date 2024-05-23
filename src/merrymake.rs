@@ -7,15 +7,15 @@ use std::net;
 use std::str::FromStr;
 use ureq::{Request, Response};
 
-pub fn get_payload() -> Result<Vec<u8>, &'static str> {
-    let mut buffer = Vec::new();
+fn get_bytes() -> Result<Vec<u8>, &'static str> {
+    let mut buffer = Vec::with_capacity(16);
     io::stdin()
         .read_to_end(&mut buffer)
         .map_err(|_| "unable to read from stdin")?;
     Ok(buffer)
 }
 
-pub fn get_args() -> Result<(String, Envelope), &'static str> {
+fn get_action_and_envelope() -> Result<(String, Envelope), &'static str> {
     let mut args: Vec<_> = env::args().collect();
     let envelope_str = args
         .pop()
@@ -26,15 +26,6 @@ pub fn get_args() -> Result<(String, Envelope), &'static str> {
         .ok_or("unable to read 'action' from program arguments")?;
 
     Ok((action, envelope))
-}
-
-/// Reads the bytes from stdin.
-fn get_bytes() -> Result<Vec<u8>, String> {
-    let mut bytes: Vec<u8> = Vec::with_capacity(16); // 16 bytes is a fair minimum capacity
-    let _ = io::stdin()
-        .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
-    Ok(bytes)
 }
 
 fn length_to_bytes(length: &usize) -> [u8; 3] {
@@ -60,19 +51,25 @@ fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), &'static str
     Ok((Vec::from(&bytes[3..end]), Vec::from(&bytes[end..])))
 }
 
-/// Used for tcp
-pub fn get_args_and_action() -> Result<(String, Envelope, Vec<u8>), String> {
-    let bytes = get_bytes()?;
-    let (action_bytes, rest_bytes1) = read_next_byte_chunk(&bytes)?;
-    let (envelope_bytes, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
-    let (payload, _) = read_next_byte_chunk(&rest_bytes2)?;
-    let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
-    let envelope = Envelope::from_bytes(&envelope_bytes)?;
-    Ok((action, envelope, payload))
+/// Returns the given `(action, envelope, payload)`.
+pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    if tcp_is_enabled() {
+        let bytes = get_bytes()?;
+        let (action_bytes, rest_bytes1) = read_next_byte_chunk(&bytes)?;
+        let (envelope_bytes, rest_bytes2) = read_next_byte_chunk(&rest_bytes1)?;
+        let (payload, _) = read_next_byte_chunk(&rest_bytes2)?;
+        let action = String::from_utf8(action_bytes).map_err(|e| e.to_string())?;
+        let envelope = Envelope::from_bytes(&envelope_bytes)?;
+        Ok((action, envelope, payload))
+    } else {
+        let (action, envelope) = get_action_and_envelope()?;
+        let payload = get_bytes()?;
+        Ok((action, envelope, payload))
+    }
 }
 
 /// Returns `true` if the `tcp` feature is enabled.
-pub fn tcp_is_enabled() -> bool {
+fn tcp_is_enabled() -> bool {
     env::args().count() == 2
 }
 
