@@ -80,7 +80,7 @@ fn tcp_is_enabled() -> bool {
     env::args().count() == 2
 }
 
-fn internal_http_post_to_rapids(
+fn http_post_to_rapids(
     event: &str,
     request_completer: impl FnOnce(Request) -> Result<Response, ureq::Error>,
 ) -> Result<(), String> {
@@ -141,19 +141,24 @@ fn pack_reply_payload(content_type: &MimeType, body: &[u8]) -> Result<Vec<u8>, S
 /// * `event` --       the event to post
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn post_to_rapids(event: &str, body: &[u8], content_type: &MimeType) -> Result<(), String> {
+pub fn post_to_rapids<T: serde::Serialize + ?Sized>(
+    event: &str,
+    body: &T,
+    content_type: &MimeType,
+) -> Result<(), String> {
+    let body = serde_json::to_vec(body).map_err(|e| e.to_string())?;
     if tcp_is_enabled() {
-        let content = pack(event, body, content_type)?;
-        internal_tcp_post_to_rapids(&content)
+        let content = pack(event, &body, content_type)?;
+        tcp_post_to_rapids(&content)
     } else {
-        internal_http_post_to_rapids(event, |r| {
+        http_post_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
-                .send_bytes(body)
+                .send_bytes(&body)
         })
     }
 }
 
-fn internal_tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
+fn tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
     let addr = env::var("RAPIDS").map_err(|_| "RAPIDS environment variable not set")?;
     let mut stream = net::TcpStream::connect(addr).map_err(|e| e.to_string())?;
     stream.write_all(bytes).map_err(|e| e.to_string())
@@ -165,13 +170,9 @@ fn internal_tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
 /// * `event` --       the event to post
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn post_str_to_rapids(
-    event: &str,
-    body: impl Into<String>,
-    content_type: &MimeType,
-) -> Result<(), String> {
-    internal_http_post_to_rapids(event, |r| {
-        r.set("Content-Type", content_type.to_string().as_str())
+pub fn post_str_to_rapids(event: &str, body: impl Into<String>) -> Result<(), String> {
+    http_post_to_rapids(event, |r| {
+        r.set("Content-Type", mime_types::TXT.to_string().as_str())
             .send_string(body.into().as_str())
     })
 }
@@ -180,7 +181,7 @@ pub fn post_str_to_rapids(
 /// # Arguments
 /// * `event` -- the event to post
 pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
-    internal_http_post_to_rapids(event, |r| r.call())
+    http_post_to_rapids(event, |r| r.call())
 }
 /// Post a reply back to the originator of the trace, with a payload and its
 /// content type.
@@ -196,8 +197,8 @@ pub fn reply_to_origin(body: &[u8], content_type: &MimeType) -> Result<(), Strin
 /// # Arguments
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn reply_str_to_origin(body: impl Into<String>, content_type: &MimeType) -> Result<(), String> {
-    post_str_to_rapids("$reply", body, content_type)
+pub fn reply_str_to_origin(body: impl Into<String>) -> Result<(), String> {
+    post_str_to_rapids("$reply", body)
 }
 
 /// Send a file back to the originator of the trace.
@@ -246,7 +247,7 @@ pub fn reply_file_to_origin(path: &str) -> Result<(), String> {
 /// # Arguments
 /// * `channel` -- the channel to join
 pub fn join_channel(channel: impl Into<String>) -> Result<(), String> {
-    post_str_to_rapids("$join", channel, &mime_types::TXT)
+    post_str_to_rapids("$join", channel)
 }
 /// Broadcast a message (event and payload) to all listeners in a channel.
 /// # Arguments
@@ -265,14 +266,13 @@ pub fn broadcast_to_channel(
         payload: String,
     }
 
-    post_str_to_rapids(
+    post_to_rapids(
         "$broadcast",
-        serde_json::to_string(&Body {
+        &Body {
             to: to.into(),
             event: event.into(),
             payload: payload.into(),
-        })
-        .unwrap(),
+        },
         &mime_types::JSON,
     )
 }
