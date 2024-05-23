@@ -1,5 +1,5 @@
 use crate::{mime_types, Envelope, MimeType};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -92,15 +92,28 @@ fn internal_http_post_to_rapids(
 
 fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, String> {
     if event == "$reply" {
-        // { content: Vec<u8>, headers: { contentType: String } }
-        todo!()
+        #[derive(Serialize)]
+        struct Headers {
+            #[serde(alias = "contentType")]
+            content_type: String,
+        }
+        #[derive(Serialize)]
+        struct Reply {
+            headers: Headers,
+            content: Vec<u8>,
+        }
+        let reply = Reply {
+            headers: Headers {
+                content_type: content_type.to_string(),
+            },
+            content: Vec::from(body),
+        };
+        serde_json::to_vec(&reply).map_err(|e| e.to_string())
     } else {
-        let event = serde_json::to_vec(event)
-            .map_err(|e| e.to_string())?
-            .as_slice();
+        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
         let bytes = vec![
             &length_to_bytes(event.len())[..],
-            event,
+            event.as_slice(),
             &length_to_bytes(body.len())[..],
             body,
         ]
@@ -142,7 +155,7 @@ fn internal_tcp_post_to_rapids(bytes: &[u8]) -> Result<(), String> {
 pub fn post_str_to_rapids(
     event: &str,
     body: impl Into<String>,
-    content_type: MimeType,
+    content_type: &MimeType,
 ) -> Result<(), String> {
     internal_http_post_to_rapids(event, |r| {
         r.set("Content-Type", content_type.to_string().as_str())
@@ -161,7 +174,7 @@ pub fn post_event_to_rapids(event: &str) -> Result<(), String> {
 /// # Arguments
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn reply_to_origin(body: &[u8], content_type: MimeType) -> Result<(), String> {
+pub fn reply_to_origin(body: &[u8], content_type: &MimeType) -> Result<(), String> {
     post_to_rapids("$reply", body, content_type)
 }
 
@@ -170,7 +183,7 @@ pub fn reply_to_origin(body: &[u8], content_type: MimeType) -> Result<(), String
 /// # Arguments
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn reply_str_to_origin(body: impl Into<String>, content_type: MimeType) -> Result<(), String> {
+pub fn reply_str_to_origin(body: impl Into<String>, content_type: &MimeType) -> Result<(), String> {
     post_str_to_rapids("$reply", body, content_type)
 }
 
@@ -180,7 +193,7 @@ pub fn reply_str_to_origin(body: impl Into<String>, content_type: MimeType) -> R
 /// * `contentType` -- the content type of the file
 pub fn reply_file_to_origin_with_content_type(
     path: &str,
-    content_type: MimeType,
+    content_type: &MimeType,
 ) -> Result<(), String> {
     let mut file = File::open(path).map_err(|_| format!("unable to open file '{}'", path))?;
 
@@ -200,7 +213,7 @@ pub fn reply_file_to_origin(path: &str) -> Result<(), String> {
         Some(f) => {
             let content_type = mime_types::ext2mime(f);
             match content_type {
-                Some(ct) => reply_file_to_origin_with_content_type(path, ct),
+                Some(ct) => reply_file_to_origin_with_content_type(path, &ct),
                 None => Err(format!("unknown file extension from file path '{}'", path)),
             }
         }
@@ -220,7 +233,7 @@ pub fn reply_file_to_origin(path: &str) -> Result<(), String> {
 /// # Arguments
 /// * `channel` -- the channel to join
 pub fn join_channel(channel: impl Into<String>) -> Result<(), String> {
-    post_str_to_rapids("$join", channel, mime_types::TXT)
+    post_str_to_rapids("$join", channel, &mime_types::TXT)
 }
 /// Broadcast a message (event and payload) to all listeners in a channel.
 /// # Arguments
@@ -247,7 +260,7 @@ pub fn broadcast_to_channel(
             payload: payload.into(),
         })
         .unwrap(),
-        mime_types::JSON,
+        &mime_types::JSON,
     )
 }
 
