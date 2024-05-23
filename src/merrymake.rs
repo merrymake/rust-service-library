@@ -53,15 +53,19 @@ fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, usize), &'static str> 
 /// Returns the given `(action, envelope, payload)`.
 pub fn get_args() -> Result<(String, Envelope, Vec<u8>), String> {
     if tcp_is_enabled() {
-        get_tcp_args()
+        get_tcp_mode_args()
     } else {
-        let (action, envelope) = get_action_and_envelope()?;
-        let payload = get_bytes()?;
-        Ok((action, envelope, payload))
+        get_http_mode_args()
     }
 }
 
-fn get_tcp_args() -> Result<(String, Envelope, Vec<u8>), String> {
+fn get_http_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
+    let (action, envelope) = get_action_and_envelope()?;
+    let payload = get_bytes()?;
+    Ok((action, envelope, payload))
+}
+
+fn get_tcp_mode_args() -> Result<(String, Envelope, Vec<u8>), String> {
     let bytes = get_bytes()?;
     let (action_bytes, i) = read_next_byte_chunk(&bytes)?;
     let (envelope_bytes, j) = read_next_byte_chunk(&bytes[i..])?;
