@@ -90,24 +90,28 @@ fn internal_http_post_to_rapids(
     Ok(())
 }
 
+fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, String> {
+    if event == "$reply" {
+        // { content: Vec<u8>, headers: { contentType: String } }
+        todo!()
+    } else {
+        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
+        let body = Vec::from(body);
+        let bytes = vec![event, body].concat();
+        Ok(bytes)
+    }
+}
+
 /// Post an event to the central message queue (Rapids), with a payload and its
 /// content type.
 /// # Arguments
 /// * `event` --       the event to post
 /// * `body` --        the payload
 /// * `contentType` -- the content type of the payload
-pub fn post_to_rapids(event: &str, body: &[u8], content_type: MimeType) -> Result<(), String> {
+pub fn post_to_rapids(event: &str, body: &[u8], content_type: &MimeType) -> Result<(), String> {
     if tcp_is_enabled() {
-        /*
-            if event == "$reply"
-            then payload has shape { content: Vec<u8>, headers: { contentType: String } }
-            else payload is body
-        */
-        // What to do with content_type?
-        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
-        let body = Vec::from(body);
-        let bytes = vec![event, body].concat();
-        internal_tcp_post_to_rapids(&bytes)
+        let content = pack(event, body, content_type)?;
+        internal_tcp_post_to_rapids(&content)
     } else {
         internal_http_post_to_rapids(event, |r| {
             r.set("Content-Type", content_type.to_string().as_str())
