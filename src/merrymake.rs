@@ -94,16 +94,20 @@ fn pack(event: &str, body: &[u8], content_type: &MimeType) -> Result<Vec<u8>, St
     if event == "$reply" {
         pack_reply_payload(content_type, body)
     } else {
-        let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
-        let bytes = vec![
-            &length_to_bytes(event.len())[..],
-            event.as_slice(),
-            &length_to_bytes(body.len())[..],
-            body,
-        ]
-        .concat();
-        Ok(bytes)
+        pack_rapids_payload(event, body)
     }
+}
+
+fn pack_rapids_payload(event: &str, body: &[u8]) -> Result<Vec<u8>, String> {
+    let event = serde_json::to_vec(event).map_err(|e| e.to_string())?;
+    let bytes = vec![
+        &length_to_bytes(event.len())[..],
+        event.as_slice(),
+        &length_to_bytes(body.len())[..],
+        body,
+    ]
+    .concat();
+    Ok(bytes)
 }
 
 fn pack_reply_payload(content_type: &MimeType, body: &[u8]) -> Result<Vec<u8>, String> {
