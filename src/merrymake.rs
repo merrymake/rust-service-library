@@ -4,6 +4,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::net;
+use std::str::FromStr;
 use ureq::{Request, Response};
 
 pub fn get_payload() -> Result<Vec<u8>, &'static str> {
@@ -36,7 +37,19 @@ fn get_bytes() -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+fn bytes_to_number(bytes: &[u8]) -> Result<u32, &'static str> {
+    if bytes.len() < 3 {
+        Err("byte vector too small to interpret as number")
+    } else {
+        let left = u32::from(bytes[0]) << 16;
+        let mid = u32::from(bytes[1]) << 8;
+        let right = u32::from(bytes[2]);
+        Ok(left | mid | right)
+    }
+}
+
 fn read_next_byte_chunk(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let len = bytes_to_number(&bytes[..2])?;
     todo!()
 }
 
@@ -212,3 +225,6 @@ pub fn broadcast_to_channel(
         mime_types::JSON,
     )
 }
+
+#[cfg(test)]
+mod test {}
