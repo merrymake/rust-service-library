@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::Deserialize;
 
 #[derive(Clone, Deserialize)]
@@ -19,9 +21,15 @@ pub struct Envelope {
 }
 
 impl Envelope {
-    pub fn new(json: &str) -> Result<Self, &'static str> {
-        let envelope: Envelope =
-            serde_json::from_str(json).map_err(|_| "Unable to parse envelope from json")?;
-        Ok(envelope)
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
+        serde_json::from_slice(bytes).map_err(|_| "Unable to parse envelope from bytes")
+    }
+}
+
+impl FromStr for Envelope {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).map_err(|_| "Unable to parse envelope from json")
     }
 }
